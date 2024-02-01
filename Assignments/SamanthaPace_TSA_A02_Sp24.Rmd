@@ -26,34 +26,43 @@ R packages needed for this assignment:"forecast","tseries", and "dplyr". Install
 #install.packages("forecast")
 #install.packages("tseries")
 #install.packages("dplyr")
+#install.packages(ggplot2)
 
 
 library(forecast)
 library(dplyr)
 library(tseries)
+library(ggplot2)
 
-
+# working directory
 getwd()
 ```
 
 
 ## Data set information  
 
-Consider the data provided in the spreadsheet "Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx" on our **Data** folder. The data comes from the US Energy Information and Administration and corresponds to the December 2023 Monthly Energy Review. The spreadsheet is ready to be used. You will also find a $.csv$ version of the data "Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source-Edit.csv". You may use the function $read.table()$ to import the $.csv$ data in R. Or refer to the file "M2_ImportingData_CSV_XLSX.Rmd" in our Lessons folder for functions that are better suited for importing the $.xlsx$.
+Consider the data provided in the spreadsheet 
+"Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx" on our **Data** folder. The data comes from the US Energy Information and Administration and corresponds to the December 2023 Monthly Energy Review. The spreadsheet is ready to be used. You will also find a $.csv$ version of the data "Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source-Edit.csv". You may use the function $read.table()$ to import the $.csv$ data in R. Or refer to the file "M2_ImportingData_CSV_XLSX.Rmd" in our Lessons folder for functions that are better suited for importing the $.xlsx$.
 
-```{r}
+```{r read data, echo=TRUE}
 #Importing data set
 
 library(readxl)
 
 #Importing data using read.xlsx
-energy_data <- read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx", 
-                          skip = 12, sheet = "Monthly Data", col_names = FALSE)
+energy_data <- read_excel(
+  path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx", 
+                         skip = 12,
+                         sheet = "Monthly Data", col_names = FALSE)
 
 # Getting column names from row 11
-read_col_names <-read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",skip = 10,n_max = 1, sheet="Monthly Data",col_names=FALSE)
+read_col_names <-
+  read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+             skip = 10,n_max = 1, sheet="Monthly Data",col_names=FALSE)
 
-energy_data <- read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",skip = 12, sheet="Monthly Data",col_names=FALSE) 
+energy_data <- 
+  read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+             skip = 12, sheet="Monthly Data",col_names=FALSE) 
 
 # inputting correct column names
 colnames(energy_data) <- read_col_names
@@ -65,18 +74,21 @@ head(energy_data)
 ## Question 1
 You will work only with the following columns: Total Biomass Energy Production, Total Renewable Energy Production, Hydroelectric Power Consumption. Create a data frame structure with these three time series only. Use the command head() to verify your data.
 
-```{r}
-energydata3col <- select(energy_data$`Total Biomass Energy Production`,
-                         energy_data$`Total Renewable Energy Production`,
-                         energy_data$`Hydroelectric Power Consumption`
-                         )
+```{r Question 1, echo=TRUE}
+# selecting the 3 columns needed
+energy_data_3 <- energy_data[,4:6]
+
+# checking with head() function
+head(energy_data_3)
 ```
 
 
 ## Question 2
 Transform your data frame in a time series object and specify the starting point and frequency of the time series using the function ts().
 
-```{r}
+```{r Question 2, echo=TRUE}
+# transforming data frame in a time series object
+ts_energy_data_3 <- ts(energy_data_3, start = c(1973,1), frequency = 12)
 
 ```
 
@@ -84,7 +96,24 @@ Transform your data frame in a time series object and specify the starting point
 ## Question 3
 Compute mean and standard deviation for these three series.
 
-```{r}
+```{r echo=TRUE}
+# mean for ts of Total Biomass Energy Production column
+mean(ts_energy_data_3[,1])
+
+# standard deviation for ts of Total Biomass Energy Production column
+sd(ts_energy_data_3[,1])
+
+# mean for ts of Total Renewable Energy Production column
+mean(ts_energy_data_3[,2])
+
+# standard deviation for ts of Total Renewable Energy Production column
+sd(ts_energy_data_3[,2])
+
+# mean for ts of Hydroelectric Power Consumption column
+mean(ts_energy_data_3[,3])
+
+# standard deviation for ts of Hydroelectric Power Consumption column
+sd(ts_energy_data_3[,3])
 
 ```
 
@@ -92,7 +121,17 @@ Compute mean and standard deviation for these three series.
 ## Question 4
 Display and interpret the time series plot for each of these variables. Try to make your plot as informative as possible by writing titles, labels, etc. For each plot add a horizontal line at the mean of each series in a different color.
 
-```{r}
+```{r echo=TRUE}
+         
+# using autoplot, can't add the mean lines
+autoplot(ts_energy_data_3) +
+  ylab("Energy (Btu)") +
+  xlab("Time") +
+  labs(color="Energy Variable") +
+  ggtitle("Energy Production & Consumption over Time") 
+
+  #abline(h=mean(ts_energy_data_3[,1]), col = 'red')
+
 
 ```
 
@@ -100,23 +139,60 @@ Display and interpret the time series plot for each of these variables. Try to m
 ## Question 5
 Compute the correlation between these three series. Are they significantly correlated? Explain your answer.
 
-```{r}
+```{r echo=TRUE}
+#correlation is covariance/standard deviation
+#cov(ts_energy_data_3)/sd(ts_energy_data_3)
 
+# this one works with coefficient but no p value
+cor(ts_energy_data_3)
+
+# correlation between Biomass and Renewable energy; small p value and 0.97 correlation value
+cor.test(energy_data_3$`Total Biomass Energy Production`, 
+         energy_data_3$`Total Renewable Energy Production`,
+         method='pearson')
+
+# correlation between Biomass and Hydroelectric energy, 
+#p value of 0.017 and correlation coefficient of -0.097
+cor.test(energy_data_3$`Total Biomass Energy Production`,
+         energy_data_3$`Hydroelectric Power Consumption`)
+
+#correlation between Hydroelectric and Renewable, p value of 0.96 and cor of -0.0018
+cor.test(energy_data_3$`Total Renewable Energy Production`,
+         energy_data_3$`Hydroelectric Power Consumption`)
+        
 ```
 
 
 ## Question 6
 Compute the autocorrelation function from lag 1 up to lag 40 for these three variables. What can you say about these plots? Do the three of them have the same behavior?
 
-```{r}
+```{r echo=TRUE}
+# computing the autocorrelation function from lag 1 to 40
+acf(ts_energy_data_3[,1], lag.max = 40, type = "correlation", plot = TRUE)
+
+acf(ts_energy_data_3[,2], lag.max = 40, type = "correlation", plot = TRUE)
+
+acf(ts_energy_data_3[,3], lag.max = 40, type = "correlation", plot = TRUE)
+
+# all three together
+acf(ts_energy_data_3, lag.max = 40, type = "correlation", plot = TRUE)
 
 ```
-
+Answer: There is strong correlation in Total Biomass Energy Production and Total Renewable Energy Production; they behave similarly. The Hydroelectric Power Comsumption behaves differently from the other two and has a wave-like cyclical pattern behavior. 
 
 ## Question 7
 Compute the partial autocorrelation function from lag 1 to lag 40 for these three variables. How these plots differ from the ones in Q6?
 
 ```{r}
+# computing the pacf from lag 1 to 40
+pacf(ts_energy_data_3[,1], lag.max = 40, plot = TRUE)
+
+pacf(ts_energy_data_3[,2], lag.max = 40, plot = TRUE)
+
+pacf(ts_energy_data_3[,3], lag.max = 40, plot = TRUE)
+
+# all three together
+pacf(ts_energy_data_3, lag.max = 40, plot = TRUE)
 
 ```
 
