@@ -7,10 +7,7 @@ geometry: margin=2.54cm
 editor_options: 
   chunk_output_type: console
 ---
-```{r}
 
-```
-  
 ## Directions
   
 You should open the .rmd file corresponding to this assignment on RStudio. The file is available on our class repository on Github. 
@@ -41,6 +38,7 @@ R packages needed for this assignment:"forecast","tseries", and "Kendall". Insta
 #install.packages("Kendall")
 #install.packages("cowplot")
 #install.packages("ggplot2")
+#install.packages("dplyr")
 
 library(forecast)
 library(tseries)
@@ -48,6 +46,7 @@ library(Kendall)
 library(readxl)
 library(cowplot)
 library(ggplot2)
+library(dplyr)
 
 #Importing data using read.xlsx
 energy_data <- read_excel(
@@ -69,7 +68,7 @@ colnames(energy_data) <- read_col_names
 head(energy_data)
 
 # selecting the 3 columns needed
-energy_data <- energy_data[,5:6]
+energy_data <- energy_data %>% select(1, 5, 6)
 ```
 
 ##Trend Component
@@ -135,7 +134,7 @@ plot_grid(HEC_plot1, HEC_ACF_autoplot, HEC_PACF_autoplot)
 ### Q2
 From the plot in Q1, do the series Total Biomass Energy Production, Total Renewable Energy Production, Hydroelectric Power Consumption appear to have a trend? If yes, what kind of trend?
 
-Answer: Both the Total Renewable Energy Production and Hydroelectric Consumption appear to have trends from their plots. The Renewable Energy data appears to have an increasing trend, while the Hydroelectric Energy appears to have a slight decreasing trend.
+Answer: Both the Total Renewable Energy Production and Hydroelectric Consumption appear to have trends from their plots. The Renewable Energy data appears to have an increasing trend, while the Hydroelectric Energy appears to have a slight decreasing trend. The Hydroelectric ACF graph clearly shows a regularly spaced seasonality component as well.
 
 ### Q3
 Use the *lm()* function to fit a linear trend to the three time series. Ask R to print the summary of the regression. Interpret the regression output, i.e., slope and intercept. Save the regression coefficients for further analysis.
@@ -163,17 +162,97 @@ HEC_beta1 <- HEC_linear_trend$coefficients[2]
 
 ```
 
-Answer:
+Answer: For Renewable Energy, the coefficient of t is 0.704, and has a positive slope, which means the linear model is increasing. The intercept is 180.989. The p-value is less than 0.05, meaning it is statistically significant. The adjusted R squared value is 0.808, which means that the model accounts for 80.8% of the variation of the data.
+
+For Hydroelectric Energy, the coefficient of t is -0.00985, which is a slightly decreasing because it is negative. The intercept is 82.73. The p value is less than 0.05, so the findings are statistically significant. The Adjusted R-squared value is 0.013, which means this model, specifically the component of time, only accounts for 1.3% of the variability of the data, which is very low.
  
 ### Q4
 Use the regression coefficients from Q3 to detrend the series. Plot the detrended series and compare with the plots from Q1. What happened? Did anything change?
 
+```{r}
+# Creating REP detrended series
+REP_detrend <- energy_data[,2] - (REP_beta0 + REP_beta1*t)
+
+colnames(REP_detrend)[1]<-"detrend"
+
+REP_detrend_df <- data.frame("Month" = energy_data$Month,
+                             "Observed" = energy_data[,2],
+                             "Detrend" = REP_detrend)
+
+#plotting observed and detrended REP series
+ggplot(REP_detrend_df, aes(x=Month)) +
+  geom_line(aes(y=Total.Renewable.Energy.Production), color = 'black') +
+  geom_line(aes(y=detrend), color = 'purple') +
+  ggtitle("Observed and Detrended Renewable Energy")
+
+# Creating HEC detrended series
+HEC_detrend <- energy_data[,3] - (HEC_beta0 + HEC_beta1*t)
+
+colnames(HEC_detrend)[1]<-"detrend"
+
+HEC_detrend_df <- data.frame("Month" = energy_data$Month,
+                             "Observed" = energy_data[,3],
+                             "Detrend" = HEC_detrend)
+
+#plotting observed and detrended HEC series
+ggplot(HEC_detrend_df, aes(x=Month)) +
+  geom_line(aes(y=Hydroelectric.Power.Consumption), color = 'black') +
+  geom_line(aes(y=detrend), color = 'darkgreen') +
+  ggtitle("Observed and Detrended Hydroelectric Energy Consumption")
+
+```
+
+Answer: For the Renewable Energy plot, the data is now centered on zero since the intercept was removed. The positive linear model was also removed, making the slope of the detrended data less steep. The observations for the detrended data now range from aboout -125 Btu to 125 Btu. For the Hydroelectric Consumption comparison of observed and detrended, since there was very little slope, the main noticable change is the removal of the intercept from the detrended series which centers the data around zero. The rest of the variability of the dataset looks to be nearly the same.
+
 ### Q5
 Plot ACF and PACF for the detrended series and compare with the plots from Q1. You may use plot_grid() again to get them side by side. nut mot mandatory. Did the plots change? How?
+
+```{r}
+# transforming data frame in a time series object
+REP_detrend_ts <- ts(REP_detrend_df$detrend, start = c(1973,1), frequency = 12)
+HEC_detrend_ts <- ts(HEC_detrend_df$detrend, start = c(1973,1), frequency = 12)
+
+# plotting detrended ACF and PACF for Renewable Energy
+REP_detrend_ACF <- acf(REP_detrend_ts, 
+               lag.max = 40, 
+               ylab = "ACF", 
+               main = "ACF of DETRENDED Renewable Energy")
+
+REP_ACF_detrend_autoplot <- autoplot(REP_detrend_ACF)
+
+plot_grid(HEC_ACF_autoplot, HEC_ACF_detrend_autoplot)
+
+REP_detrend_PACF <- pacf(REP_detrend_ts,
+                 lag.max = 40, 
+                 ylab = 'PACF', 
+                 main = "PACF of DETRENDED Renewable Energy")
+
+REP_PACF_detrend_autoplot <- autoplot(REP_detrend_PACF)
+
+# creating individual plots for Hydroelectric Consumption
+HEC_detrend_ACF <- acf(HEC_detrend_ts,
+               lag.max = 40, 
+               ylab = "ACF", 
+               main = "ACF of DETRENDED Hydroelectric Consumption")
+
+HEC_ACF_detrend_autoplot <- autoplot(HEC_detrend_ACF)
+
+HEC_detrend_PACF <- pacf(HEC_detrend_ts, 
+                 lag.max = 40, 
+                 ylab = "PACF", 
+                 main = "PACF of DETRENDED Hydroelectric Consumption")
+
+HEC_PACF_detrend_autoplot <- autoplot(HEC_detrend_PACF)
+
+```
+
+Answer: The Renewable Energy's detrended compared to the original ACF shows a slightly lower and more irregular dependence on t from one lag to the next. The PACF of the observed and detrended Renewable Energy looks fairly similar, with a similar pattern of future lags having a coefficient still.
+For the Hydroelectric Energy Consumption, there looks to be the same pattern of seasonality in the ACF for the original and detrended data.
 
 ## Seasonal Component
 
 Set aside the detrended series and consider the original series again from Q1 to answer Q6 to Q8.
+
 
 ### Q6
 Just by looking at the time series and the acf plots, do the series seem to have a seasonal trend? No need to run any code to answer your question. Just type in you answer below.
