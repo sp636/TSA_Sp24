@@ -198,6 +198,32 @@ ggplot(df_detrend, aes(x=date))+
 
 Note that blue line is our original series, red line is our trend, green line is our original series minus the trend or in other words the detrended series. And in orange is the trend line for the detrended series which has slope 0 meaning we were able to effectively eliminate the trend with a linear model.
 
+```{r}
+library(cowplot) #for plot grid
+library(ggfortify) #for autoplot
+
+ts_y_deseason <- ts(y_deseason, start=c(19311,1), frequency = 12)
+
+plot_grid(
+  autoplot(ts_inflow_data[,iHP], ylab ="Observed Inflow"),
+  autoplot(Acf(ts_inflow_data[,iHP], lag.max=40, plot=FALSE)),
+  autoplot(ts_y_detrend, ylab="Detrended Inflow - Linear Model"),
+  autoplot(acf(ts_y_detrend, lag.max=40, plot=FALSE)))
+
+#test<- acf()
+#plot(test)
+
+# on detrended; there is significant decrease on ACF, by lag 20, limited acf. this is good; we need less parameters than we needed before.
+# detrending: decreased ACF; decrease the time dependence. we are trying to make a model that represents the dataset, this is lagged observes of own series. if it is 20, that is estimating 20 parameters, ideally, we want to have this only on the initial lags, like estimating on 1-2 lags, not larger lags.
+
+# always looking at acf for TRENDS
+
+# HP1 looks to have a strong seasonal component
+
+# we are using a constant season model; with longer periods of time, often have seen some shifts in the seasonal component
+#what if my betas are not constant, and dependent on time?
+```
+
 
 ## Seasonal Component
 
@@ -206,7 +232,48 @@ Now let's shift attention to the seasonal component.
 ```{r}
 #Use seasonal means model
 
+iHP <- 1
 
+#create dummies
+dummies <- seasonaldummy(ts_inflow_data[,iHP])
+
+# regression on dummies; seasonal means model (~dummies; means regress over the dummies
+# decemember is the intercept)
+#why original dataframe: must go back to original data
+# generally, detrend, then deseason the detrended data
+seas_linear_model <- lm(inflow_data[,(iHP+1)]~dummies)
+
+summary(seas_linear_model)
+# summary shows significant; april has a high p value so not significant. its ok, the rest are significant; adjusted r sq says 64% is explained
+
+#in assignemnt, do one seasonal model for each of the three!
+
+#store coeff: need to store all 12 coefficiens
+beta0 <- seas_linear_model$coefficients[1] # is the intercept
+beta1 <- seas_linear_model$coefficients[2:12]
+
+#now create the seasonal component, we will subtract this from our original data set
+seas_comp <- array(0,nobs)
+for(i in 1:nobs){
+  seas_comp[i] <- beta0 +beta1 %*% dummies[i,] 
+}
+
+#beta1 * dummie for whichever month
+
+#%*% is matrix
+#beta 1 is a vector, dummies is a matrix; so have to index and element by element and sum
+# dummies is a vector and need to be careful to do the multiplication; goingn to make a loop
+
+ggplot(inflow_data, aes(x=my_date)) +
+  geom_line(aes(y=inflow_data[,(iHP+1)], col="black") +
+  geom_line(aes(y=seas_comp), col ="orange"))
+
+y_deason <- inflow_data[,(iHP+1)] - seas_comp
+
+ggplot(inflow_data, aes(x=my_date)) +
+  geom_line(aes(y=inflow_data[,(iHP+1)]), col="black") +
+  geom_line(aes(y=y_deseason))
+#gives a constant seaos
 ```
 
 ##Exercise
@@ -220,7 +287,8 @@ Some test only work for non-seasonal data. So let's create another series with y
 
 ```{r}
 #Group data in yearly steps instances
-
+HP1 <- 1
+plot(decompose(ts_inflow_data[,HP1+1]))
 
 ```
 

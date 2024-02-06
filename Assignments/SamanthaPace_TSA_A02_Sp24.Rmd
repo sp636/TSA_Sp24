@@ -27,12 +27,15 @@ R packages needed for this assignment:"forecast","tseries", and "dplyr". Install
 #install.packages("tseries")
 #install.packages("dplyr")
 #install.packages(ggplot2)
+#install.packages("tidyverse")
 
 
 library(forecast)
 library(dplyr)
 library(tseries)
 library(ggplot2)
+library(tidyverse)
+library(readxl)
 
 # working directory
 getwd()
@@ -45,9 +48,6 @@ Consider the data provided in the spreadsheet
 "Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx" on our **Data** folder. The data comes from the US Energy Information and Administration and corresponds to the December 2023 Monthly Energy Review. The spreadsheet is ready to be used. You will also find a $.csv$ version of the data "Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source-Edit.csv". You may use the function $read.table()$ to import the $.csv$ data in R. Or refer to the file "M2_ImportingData_CSV_XLSX.Rmd" in our Lessons folder for functions that are better suited for importing the $.xlsx$.
 
 ```{r read data, echo=TRUE}
-#Importing data set
-
-library(readxl)
 
 #Importing data using read.xlsx
 energy_data <- read_excel(
@@ -76,7 +76,7 @@ You will work only with the following columns: Total Biomass Energy Production, 
 
 ```{r Question 1, echo=TRUE}
 # selecting the 3 columns needed
-energy_data_3 <- energy_data[,4:6]
+energy_data_3 <- energy_data %>% select(1,4,5,6)
 
 # checking with head() function
 head(energy_data_3)
@@ -98,102 +98,110 @@ Compute mean and standard deviation for these three series.
 
 ```{r echo=TRUE}
 # mean for ts of Total Biomass Energy Production column
-mean(ts_energy_data_3[,1])
+biomass_mean <- mean(ts_energy_data_3[,2])
+biomass_mean
 
 # standard deviation for ts of Total Biomass Energy Production column
 sd(ts_energy_data_3[,1])
 
 # mean for ts of Total Renewable Energy Production column
-mean(ts_energy_data_3[,2])
+renewable_mean <- mean(ts_energy_data_3[,3])
+renewable_mean
 
 # standard deviation for ts of Total Renewable Energy Production column
 sd(ts_energy_data_3[,2])
 
 # mean for ts of Hydroelectric Power Consumption column
-mean(ts_energy_data_3[,3])
+hydroelectric_mean <- mean(ts_energy_data_3[,4])
+hydroelectric_mean
 
 # standard deviation for ts of Hydroelectric Power Consumption column
 sd(ts_energy_data_3[,3])
 
 ```
 
-
 ## Question 4
 Display and interpret the time series plot for each of these variables. Try to make your plot as informative as possible by writing titles, labels, etc. For each plot add a horizontal line at the mean of each series in a different color.
 
+
 ```{r echo=TRUE}
-         
-# using autoplot, can't add the mean lines
-autoplot(ts_energy_data_3) +
+
+# Biomass Energy plot
+autoplot(ts_energy_data_3[,2]) +
   ylab("Energy (Btu)") +
   xlab("Time") +
   labs(color="Energy Variable") +
-  ggtitle("Energy Production & Consumption over Time") 
+  ggtitle("Biomass Energy Production over Time") +
+  geom_hline(yintercept = biomass_mean, col = 'red')
 
-  #abline(h=mean(ts_energy_data_3[,1]), col = 'red')
+#Renewable Energy plot
+autoplot(ts_energy_data_3[,3]) +
+  ylab("Energy (Btu)") +
+  xlab("Time") +
+  labs(color="Energy Variable") +
+  ggtitle("Renewable Energy Production over Time") +
+  geom_hline(yintercept = renewable_mean, col = 'blue')
 
+#Hydroelectric Consumption plot
+autoplot(ts_energy_data_3[,4]) +
+  ylab("Energy (Btu)") +
+  xlab("Time") +
+  labs(color="Energy Variable") +
+  ggtitle("Hydroelectric Consumption over Time") +
+  geom_hline(yintercept = hydroelectric_mean, col = 'green')
 
 ```
-
+Answer: The Biomass plot shows an upward trend, and the seasonality is hard to decipher. The mean, in the red line, is right at 280. Similarly, the Renewable energy plot shows an upward trend. It shows a little more of a seasonality trend with regular up/down cycles. The mean of the renewable energy production for this time series is 396. Finally, the hydroelectric consumption plot doesn't exhibit much of trend, but may have seasonality as there is somewhat regularly space peaks and valleys in the data. For the duration of the time period, the data is centered on the mean.
 
 ## Question 5
 Compute the correlation between these three series. Are they significantly correlated? Explain your answer.
 
 ```{r echo=TRUE}
-#correlation is covariance/standard deviation
-#cov(ts_energy_data_3)/sd(ts_energy_data_3)
 
-# this one works with coefficient but no p value
-cor(ts_energy_data_3)
+# correlation coefficients
+cor(energy_data_3[,2:4])
 
-# correlation between Biomass and Renewable energy; small p value and 0.97 correlation value
-cor.test(energy_data_3$`Total Biomass Energy Production`, 
-         energy_data_3$`Total Renewable Energy Production`,
-         method='pearson')
-
-# correlation between Biomass and Hydroelectric energy, 
-#p value of 0.017 and correlation coefficient of -0.097
-cor.test(energy_data_3$`Total Biomass Energy Production`,
-         energy_data_3$`Hydroelectric Power Consumption`)
-
-#correlation between Hydroelectric and Renewable, p value of 0.96 and cor of -0.0018
-cor.test(energy_data_3$`Total Renewable Energy Production`,
-         energy_data_3$`Hydroelectric Power Consumption`)
         
 ```
-
+Answer: Total Biomass Energy Production and Total Renewable Energy Production have a positive correlation coefficient of 0.97. This is very high, and since the scale of co-efficients are between -1 and 1, 0.97 is significantly correlated. Biumass and Hydroelectric have a slight negative correlation at -0.097, but is close to zero, which would indicate an absence of a correlation - they are not significantly correlated. Renewable and Hydroelectric have an even small coefficient of -0.0018, which is very close to zero, meaning they are not significantly correlated.
 
 ## Question 6
 Compute the autocorrelation function from lag 1 up to lag 40 for these three variables. What can you say about these plots? Do the three of them have the same behavior?
 
 ```{r echo=TRUE}
 # computing the autocorrelation function from lag 1 to 40
-acf(ts_energy_data_3[,1], lag.max = 40, type = "correlation", plot = TRUE)
+acf(ts_energy_data_3[,2], lag.max = 40, type = "correlation", plot = TRUE, 
+    main = "Biomass Energy")
 
-acf(ts_energy_data_3[,2], lag.max = 40, type = "correlation", plot = TRUE)
+acf(ts_energy_data_3[,3], lag.max = 40, type = "correlation", plot = TRUE, 
+    main = "Renewable Energy")
 
-acf(ts_energy_data_3[,3], lag.max = 40, type = "correlation", plot = TRUE)
+acf(ts_energy_data_3[,4], lag.max = 40, type = "correlation", plot = TRUE, 
+    main = "Hydroelectric Energy")
 
 # all three together
-acf(ts_energy_data_3, lag.max = 40, type = "correlation", plot = TRUE)
+acf(ts_energy_data_3[,2:4], lag.max = 40, type = "correlation", plot = TRUE)
 
 ```
-Answer: There is strong correlation in Total Biomass Energy Production and Total Renewable Energy Production; they behave similarly. The Hydroelectric Power Comsumption behaves differently from the other two and has a wave-like cyclical pattern behavior. 
+Answer: There is strong correlation in Total Biomass Energy Production and Total Renewable Energy Production; they behave similarly. The Hydroelectric Power Consumption behaves differently from the other two and has a wave-like cyclical pattern behavior. 
 
 ## Question 7
 Compute the partial autocorrelation function from lag 1 to lag 40 for these three variables. How these plots differ from the ones in Q6?
 
 ```{r}
 # computing the pacf from lag 1 to 40
-pacf(ts_energy_data_3[,1], lag.max = 40, plot = TRUE)
+pacf(ts_energy_data_3[,2], lag.max = 40, plot = TRUE, 
+     main = "Biomass Energy")
 
-pacf(ts_energy_data_3[,2], lag.max = 40, plot = TRUE)
+pacf(ts_energy_data_3[,3], lag.max = 40, plot = TRUE, 
+     main = "Renewable Energy")
 
-pacf(ts_energy_data_3[,3], lag.max = 40, plot = TRUE)
+pacf(ts_energy_data_3[,4], lag.max = 40, plot = TRUE, 
+     main = "Hydroelectric Energy")
 
 # all three together
-pacf(ts_energy_data_3, lag.max = 40, plot = TRUE)
+pacf(ts_energy_data_3[,2:4], lag.max = 40, plot = TRUE)
 
 ```
-
+Answer: The PACF for Biomass shows that there might be some seasonality, but overall has less linear dependence on the lags. This is a much different story than what is in the plots of Q6 for Biomass - where there is high dependence between the lags, with a decay in the dependence from 1.0 to 0.8 over the lags. The Renewable plot ([,3]) shows similar behavior - the PACF shows there is probably some seasonality in the data, but generally a lower dependence of the lags, unlike the high dependence shown in the plot in Q6.For the hydroelectric ACF in Q6, there is an evenly shaped wave moving through the lags, showing a seasonal trend, but not nearly as high of dependence on the lags as the other two pots. The PACF for hydroelectric also shows some potential seasonality as well.
 

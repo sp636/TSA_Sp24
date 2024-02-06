@@ -36,6 +36,40 @@ R packages needed for this assignment:"forecast","tseries", and "Kendall". Insta
 ```{r}
 #Load/install required package here
 
+#install.packages("forecast")
+#install.packages("tseries")
+#install.packages("Kendall")
+#install.packages("cowplot")
+#install.packages("ggplot2")
+
+library(forecast)
+library(tseries)
+library(Kendall)
+library(readxl)
+library(cowplot)
+library(ggplot2)
+
+#Importing data using read.xlsx
+energy_data <- read_excel(
+  path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx", 
+                         skip = 12,
+                         sheet = "Monthly Data", col_names = FALSE)
+
+# Getting column names from row 11
+read_col_names <-
+  read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+             skip = 10,n_max = 1, sheet="Monthly Data",col_names=FALSE)
+
+energy_data <- 
+  read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+             skip = 12, sheet="Monthly Data",col_names=FALSE) 
+
+# inputting correct column names
+colnames(energy_data) <- read_col_names
+head(energy_data)
+
+# selecting the 3 columns needed
+energy_data <- energy_data[,5:6]
 ```
 
 ##Trend Component
@@ -44,11 +78,92 @@ R packages needed for this assignment:"forecast","tseries", and "Kendall". Insta
 For each time series, i.e., Renewable Energy Production and Hydroelectric Consumption create three plots: one with time series, one with the ACF and with the PACF. You may use the some code form A2, but I want all the three plots side by side as in a grid.
 (Hint: use function `plot_grid()` from the `cowplot` package)
 
+```{r Question 1}
+# transforming data frame in a time series object
+REP_ts <- ts(energy_data$`Total Renewable Energy Production`, start = c(1973,1), frequency = 12)
+HEC_ts <- ts(energy_data$`Hydroelectric Power Consumption`, start = c(1973,1), frequency = 12)
+
+# creating individual plots for Renewable Energy Production
+REP_plot1 <- autoplot(REP_ts,
+                  ylab= "Energy (Btu)",
+                  main = "Renewable Energy Production over Time")
+
+REP_ACF <- acf(REP_ts, 
+               col = 'blue',
+               lag.max = 40, 
+               ylab = "ACF", 
+               main = "ACF of Renewable Energy")
+
+REP_ACF_autoplot <- autoplot(REP_ACF)
+
+REP_PACF <- pacf(REP_ts, 
+                 col = 'purple',
+                 lag.max = 40, 
+                 ylab = 'PACF', 
+                 main = "PACF of Renewable Energy")
+
+REP_PACF_autoplot <- autoplot(REP_PACF)
+
+# combining REP individual with plot grid
+plot_grid(REP_plot1, REP_ACF_autoplot, REP_PACF_autoplot)
+
+# creating individual plots for Hydroelectric Consumption
+HEC_plot1 <- autoplot(HEC_ts,
+                ylab = "Energy (Btu)",
+                main = "Hydroelectric Energy Consumption over Time")
+
+HEC_ACF <- acf(HEC_ts,
+               lag.max = 40, 
+               ylab = "ACF", 
+               main = "ACF of Hydroelectric Consumption")
+
+HEC_ACF_autoplot <- autoplot(HEC_ACF)
+
+HEC_PACF <- pacf(HEC_ts, 
+                 lag.max = 40, 
+                 ylab = "PACF", 
+                 main = "PACF of Hydroelectric Consumption")
+
+HEC_PACF_autoplot <- autoplot(HEC_PACF)
+
+# combining with plotgrid
+plot_grid(HEC_plot1, HEC_ACF_autoplot, HEC_PACF_autoplot)
+
+```
+
+
 ### Q2
 From the plot in Q1, do the series Total Biomass Energy Production, Total Renewable Energy Production, Hydroelectric Power Consumption appear to have a trend? If yes, what kind of trend?
 
+Answer: Both the Total Renewable Energy Production and Hydroelectric Consumption appear to have trends from their plots. The Renewable Energy data appears to have an increasing trend, while the Hydroelectric Energy appears to have a slight decreasing trend.
+
 ### Q3
 Use the *lm()* function to fit a linear trend to the three time series. Ask R to print the summary of the regression. Interpret the regression output, i.e., slope and intercept. Save the regression coefficients for further analysis.
+
+```{r Question 3}
+# storing vectors
+nobs <-nrow(energy_data)
+t <- 1:nobs
+
+# fitting linear trend to Renewable Energy Production Data
+REP_linear_trend <- lm(energy_data$`Total Renewable Energy Production`~t)
+summary(REP_linear_trend)
+
+# saving the regression coefficients for REP
+REP_beta0 <- REP_linear_trend$coefficients[1]
+REP_beta1 <- REP_linear_trend$coefficients[2]
+
+# fitting linear trend to Hydroelectric Consumption (HEC) Data
+HEC_linear_trend <- lm(energy_data$`Hydroelectric Power Consumption`~t)
+summary(HEC_linear_trend)
+
+# saving the regression coefficients
+HEC_beta0 <- HEC_linear_trend$coefficients[1]
+HEC_beta1 <- HEC_linear_trend$coefficients[2]
+
+```
+
+Answer:
  
 ### Q4
 Use the regression coefficients from Q3 to detrend the series. Plot the detrended series and compare with the plots from Q1. What happened? Did anything change?
