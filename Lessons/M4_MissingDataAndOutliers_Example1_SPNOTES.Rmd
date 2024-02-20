@@ -103,6 +103,9 @@ The random component is the time series without seasonal and trend component. Le
 #Using R decompose function
 # input should always be a time series; x is always the original time series; then seasonal component and trend and random component
 # does a moving average trend composition; usually going to be size of seasonal lag - centered moving average, if specified 12, 6 before and 6 after
+
+# trying to capture the year average if that is changing over time
+
 # decompose uses seasonal means model - can only fit constant seasonal patterns; if seasonal pattern is changing over time, won't remove it
 # "additive": can choose additive or multiplicative; additive means sum trend, seasonal, random; depends on how it is used over time.
 #how to decide which to try: try both and see which made random look most random
@@ -115,6 +118,7 @@ decompose_inflow_data=decompose(ts_inflow_data[,iHP],"additive")
 plot(decompose_inflow_data)
 
 # now look for outliers in the random component
+# differencing is different from this; differencing when the moving average/linear trend isn't removing the trend
 
 #Inspect random component
 inflow_random <- decompose_inflow_data$random   
@@ -122,9 +126,12 @@ mean_inflow <- mean(inflow_random)
 sd_inflow <- sd(inflow_random)
 
 cat(mean_inflow,sd_inflow)
+# getting NA's
+# when you decompose - more NA's; because using the moving average - going to lose some - have to start the series after the first 6 months
+
 #Note random series has some missing values, that is why we got NAs
 
-#Compute mean and standard deviation without missing values
+#Compute mean and standard deviation without missing values - remove the NA's at the beginning and end of the dataset; its the moving average 
 mean_inflow <- mean(na.exclude(inflow_random))  #exclude NA or missing observation to compute mean and std
 sd_inflow <- sd(na.exclude(inflow_random))
 
@@ -133,6 +140,9 @@ cat(mean_inflow,sd_inflow)
 autoplot(inflow_random)+
   autolayer(tsclean(inflow_random))
 
+#tsclean function: going to remove missing data/additive outliers from data - performs internally the function
+# running the tsclean function: clean series; did identify outliers and removed them; removed and replaced by the mean
+# do we want to replace all these outliers? need to understand where they are coming from?
 ```
 
 ## Missing observations
@@ -168,6 +178,9 @@ Data is ready!
 ggplot(df_inflow_random, aes(x=month, y=inflow)) +
             geom_boxplot()
 
+#april is the transition to dry season - the other ones aren't outliers! don't remove
+
+# following plot: showing - and + 3 sd; anything outsde teh 3 stdevs, is an outlier
 ggplot(df_inflow_random, aes(x=date, y=inflow)) +
             geom_line() +
             geom_abline(slope=0,intercept=3*sd_inflow,color="red") +
@@ -205,13 +218,16 @@ If the test performed confirms an outlier and you want to remove use function `r
 
 ```{r}
 #Just find extreme value
+# function outlier: value that is deviating the most from the mean
 outlier(df_inflow_random$inflow) 
                   
 #Function chisq.out.test check if extreme value is outlier
+# runs on the most deviating value; very low p value - can say there is an outlier; running a hyp test to find if it is an outlier - looking at the test statistic
+# risk adverse - conservative projection
 grubbs_test <- grubbs.test(df_inflow_random$inflow)
 print(grubbs_test) #look at the p-value to find the decision 
 
-#If you need to remove outlier use rm.outlier()
+#If you need to remove outlier use rm.outlier() (doing what the tsclean function does; we are doing it manually; must specify what the fill is - replacing it with local mean)
 df_inflow_random$inflow <- rm.outlier(df_inflow_random$inflow,fill=TRUE) #using fill equal true the value will be replaced by mean or median 
 #Since we removed seasonality replacing with overall mean instead of local mean is acceptable
 
@@ -247,6 +263,9 @@ If you want to create your own loop to remove outlier so that you have more cont
 
 ```{r}
 summary(df_inflow_random$inflow)
+
+# important because can adjust the p value sensitivity
+# do outlier detection in random component only
 
 #Writing a loop to remove all outliers
 #Loop while to remove all outliers
