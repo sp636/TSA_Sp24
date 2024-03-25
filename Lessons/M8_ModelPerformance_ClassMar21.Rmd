@@ -30,7 +30,7 @@ library(tidyverse)
 library(smooth)
 
 #New package for M9 to assist with tables
-#install.packages("kableExtra")
+install.packages("kableExtra")
 library(kableExtra)
 
 ```
